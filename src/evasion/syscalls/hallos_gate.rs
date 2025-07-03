@@ -203,9 +203,8 @@ pub unsafe fn fetch_nt_syscall(dw_sys_hash: u32) -> Result<NtSyscall, &'static s
 
             // if hooked - scenario 1
             if *func_address == 0xE9 {
-                if let Some((ssn, clean_stub)) = find_syscall_number(func_address) {
+                if let Some(ssn) = find_syscall_number(func_address) {
                     nt_sys.dw_ssn           = ssn;
-                    nt_sys.p_syscall_address = clean_stub as *mut c_void;   // <── stub limpio
                     SYSCALL_CACHE.lock().unwrap().push(nt_sys.clone());
                     return Ok(nt_sys);
                 }
@@ -214,9 +213,8 @@ pub unsafe fn fetch_nt_syscall(dw_sys_hash: u32) -> Result<NtSyscall, &'static s
 
             // if hooked - scenario 2
             if *func_address.add(3) == 0xE9 {
-                if let Some((ssn, clean_stub)) = find_syscall_number(func_address) {
+                if let Some(ssn) = find_syscall_number(func_address) {
                     nt_sys.dw_ssn           = ssn;
-                    nt_sys.p_syscall_address = clean_stub as *mut c_void;   // <── stub limpio
                     SYSCALL_CACHE.lock().unwrap().push(nt_sys.clone());
                     return Ok(nt_sys);
                 }
@@ -234,7 +232,7 @@ pub unsafe fn fetch_nt_syscall(dw_sys_hash: u32) -> Result<NtSyscall, &'static s
 ///
 /// # Returns
 /// * `Some(u32)` containing the syscall number if found, `None` otherwise.
-unsafe fn find_syscall_number(func_address: *const u8) -> Option<(u32, *const u8)>      // <── ahora devuelve tupla
+unsafe fn find_syscall_number(func_address: *const u8) -> Option<(u32)>      // <── ahora devuelve tupla
 {
 
     for idx in 1..=RANGE {
@@ -243,11 +241,11 @@ unsafe fn find_syscall_number(func_address: *const u8) -> Option<(u32, *const u8
 
         if check_syscall_bytes(func_address, down) {
             let ssn = extract_syscall_number(func_address, down) as u32 - idx as u32;
-            return Some((ssn, func_address.offset(down)));   // stub limpio
+            return Some(ssn);
         }
         if check_syscall_bytes(func_address, up) {
             let ssn = extract_syscall_number(func_address, up) as u32 + idx as u32;
-            return Some((ssn, func_address.offset(up)));     // stub limpio
+            return Some(ssn);
         }
     }
     None
