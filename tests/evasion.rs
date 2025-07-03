@@ -6,7 +6,7 @@ mod syscalls {
     use std::io::Write;
     use windows::Win32::Foundation::{FALSE, HANDLE};
     use windows::Win32::System::Kernel::NULL64;
-    use windows::Win32::System::Memory::{MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READ, PAGE_PROTECTION_FLAGS, PAGE_READWRITE, VIRTUAL_ALLOCATION_TYPE};
+    use windows::Win32::System::Memory::{MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READ, PAGE_READWRITE};
     use evasion::syscalls::{prepare_direct_syscall, run_direct_syscall};
     use windows::Win32::System::Threading::{GetThreadId, THREAD_ALL_ACCESS};
     use redloader::evasion;

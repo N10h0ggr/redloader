@@ -3,7 +3,7 @@ use std::{ptr};
 use std::sync::Mutex;
 use crate::utils::windows::*;
 use crate::utils::windows::get_export_directory;
-use crate::utils::fast_crc32::compute_crc32_hash;
+use crate::utils::crc32::compute_crc32_hash;
 use windows::Win32::Foundation::HMODULE;
 use windows::Win32::System::Threading::PEB;
 use windows::Win32::System::WindowsProgramming::LDR_DATA_TABLE_ENTRY;

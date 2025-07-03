@@ -4,7 +4,7 @@ use windows::Win32::Foundation::{HMODULE};
 use windows::Win32::System::WindowsProgramming::LDR_DATA_TABLE_ENTRY;
 use windows::Win32::System::SystemServices::{IMAGE_DOS_HEADER, IMAGE_EXPORT_DIRECTORY};
 use windows::Win32::System::Diagnostics::Debug::IMAGE_NT_HEADERS64;
-use crate::utils::fast_crc32::{compute_crc32_hash, FastCrc32};
+use crate::utils::crc32::{compute_crc32_hash, Crc32};
 
 #[cfg(target_arch = "x86")]
 pub unsafe fn get_teb() -> *mut TEB {
@@ -37,7 +37,7 @@ pub unsafe fn get_module_handle_by_hash(dll_name_hash: u32) -> Option<usize> {
     let p_ldr: *const PEB_LDR_DATA = (*peb).Ldr;
     let mut p_dte: *const LDR_DATA_TABLE_ENTRY = (*p_ldr).InMemoryOrderModuleList.Flink as *const LDR_DATA_TABLE_ENTRY;
 
-    let crc32 = FastCrc32::new();
+    let crc32 = Crc32::new();
 
     while let Some(p_dte_ref) = p_dte.as_ref() {
         if !p_dte_ref.FullDllName.Buffer.is_null() {
@@ -135,12 +135,12 @@ pub unsafe fn get_dll_exported_functions_by_hash(dll_name_hash: usize) -> Vec<St
 mod tests {
     use windows::core::{w};
     use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-    use crate::utils::fast_crc32::FastCrc32;
+    use crate::utils::crc32::Crc32;
     use super::*;
 
     #[test]
     fn test_get_module_handle() {
-        let crc32 = FastCrc32::new();
+        let crc32 = Crc32::new();
 
         unsafe {
             let dll_name = w!("NTDLL.DLL");
@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn test_get_dll_exported_functions_by_hash() {
-        let crc32 = FastCrc32::new();
+        let crc32 = Crc32::new();
 
         unsafe {
             let dll_name = w!("non_existent_dll.DLL");

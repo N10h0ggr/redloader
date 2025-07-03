@@ -15,8 +15,8 @@ global_asm!(
     // ---------- run_indirect_syscall(...) ----------
     ".global run_indirect_syscall",
     "run_indirect_syscall:",
-    "    mov r11, [rip + pGate]",     // r11 = stub ntdll
-    "    jmp r11",                    // cola → ejecuta mov r10,rcx / mov eax,SSN / syscall / ret
+    "    mov r11, [rip + pGate]", 
+    "    jmp r11", 
 );
 
 unsafe extern "C" {

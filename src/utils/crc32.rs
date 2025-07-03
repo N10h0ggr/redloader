@@ -1,10 +1,10 @@
 
-pub struct FastCrc32 {
+pub struct Crc32 {
     table: [u32; 256],
 }
 
-impl FastCrc32 {
-    // Initialize the CRC32 table
+impl Crc32 {
+    /// Initialize the CRC32 table
     pub fn new() -> Self {
         let mut table = [0u32; 256];
         for i in 0..256 {
@@ -18,10 +18,10 @@ impl FastCrc32 {
             }
             table[i as usize] = crc;
         }
-        FastCrc32 { table }
+        Crc32 { table }
     }
 
-    // Compute the CRC32 checksum
+    /// Compute the CRC32 checksum
     pub fn compute_hash(&self, bytes: &[u8]) -> u32 {
         let mut crc = 0xffffffff;
         for &byte in bytes {
@@ -59,8 +59,8 @@ mod tests {
     use super::*;
     #[test]
     fn test_fast_crc32_ascii() {
-        let crc32 = FastCrc32::new();
         let data = b"_CRC32";
+        let crc32 = Crc32::new();
         assert_eq!(crc32.compute_hash(data), 0x7C2DF918u32);
     }
 
