@@ -232,7 +232,7 @@ pub unsafe fn fetch_nt_syscall(dw_sys_hash: u32) -> Result<NtSyscall, &'static s
 ///
 /// # Returns
 /// * `Some(u32)` containing the syscall number if found, `None` otherwise.
-unsafe fn find_syscall_number(func_address: *const u8) -> Option<(u32)>      // <── ahora devuelve tupla
+unsafe fn find_syscall_number(func_address: *const u8) -> Option<u32>      // <── ahora devuelve tupla
 {
 
     for idx in 1..=RANGE {
